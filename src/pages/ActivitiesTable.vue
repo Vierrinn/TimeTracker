@@ -30,7 +30,11 @@
           </td>
           <td>
             <select v-model="log.category" @change="saveChanges">
-              <option v-for="category in store.categories" :key="category.id" :value="category.name">
+              <option
+                v-for="category in store.categories"
+                :key="category.id"
+                :value="category.name"
+              >
                 {{ category.name }}
               </option>
             </select>
@@ -57,29 +61,26 @@
 
     <button @click="exportToExcel">Експорт в Excel</button>
     <button @click="clearLogs">Очистити</button>
-    <button @click="goToTimerPage" class="back-btn">Повернутися до таймера</button>
+    <button @click="goToTimerPage" class="back-btn">
+      Повернутися до таймера
+    </button>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useActivityStore } from '@/stores/activityStore';
-import * as XLSX from 'xlsx';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted } from "vue";
+import { useActivityStore } from "@/stores/activityStore";
+import * as XLSX from "xlsx";
+import { useRouter } from "vue-router";
 
 const store = useActivityStore();
 const router = useRouter();
 
-
-const startDate = ref('');
-const endDate = ref('');
-
-onMounted(() => {
-  store.loadLogs();
-});
+const startDate = ref("");
+const endDate = ref("");
 
 const filteredLogs = computed(() => {
-  return store.activityLogs.filter(log => {
+  return store.activityLogs.filter((log) => {
     const logDate = new Date(log.startTime).toISOString().slice(0, 10);
     return (
       (!startDate.value || logDate >= startDate.value) &&
@@ -88,18 +89,28 @@ const filteredLogs = computed(() => {
   });
 });
 
-const sortedLogs = computed(() => 
-  [...filteredLogs.value].sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+const sortedLogs = computed(() =>
+  [...filteredLogs.value].sort(
+    (a, b) => new Date(a.startTime) - new Date(b.startTime)
+  )
 );
 
 const totalDuration = computed(() => {
-  let totalSeconds = sortedLogs.value.reduce((sum, log) => sum + calculateDurationSeconds(log.startTime, log.endTime), 0);
+  let totalSeconds = sortedLogs.value.reduce(
+    (sum, log) => sum + calculateDurationSeconds(log.startTime, log.endTime),
+    0
+  );
   return formatTotalDuration(totalSeconds);
 });
 
 // Formatting Functions
-const formatDate = date => new Date(date).toLocaleDateString();
-const formatTime = time => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const formatDate = (date) => new Date(date).toLocaleDateString();
+const formatTime = (time) =>
+  new Date(time).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
 const formatDuration = (start, end) => {
   const totalSeconds = calculateDurationSeconds(start, end);
@@ -121,17 +132,25 @@ const calculateDurationSeconds = (start, end) => {
 
 // Editing Functions
 const editDate = (log, event) => {
-  const newDate = event.target.innerText.split('.');
+  const newDate = event.target.innerText.split(".");
   if (newDate.length === 3) {
     const newDateStr = `${newDate[2]}-${newDate[1]}-${newDate[0]}`;
     const oldStart = new Date(log.startTime);
     const oldEnd = new Date(log.endTime);
 
     const newStart = new Date(newDateStr);
-    newStart.setHours(oldStart.getHours(), oldStart.getMinutes(), oldStart.getSeconds());
+    newStart.setHours(
+      oldStart.getHours(),
+      oldStart.getMinutes(),
+      oldStart.getSeconds()
+    );
 
     const newEnd = new Date(newDateStr);
-    newEnd.setHours(oldEnd.getHours(), oldEnd.getMinutes(), oldEnd.getSeconds());
+    newEnd.setHours(
+      oldEnd.getHours(),
+      oldEnd.getMinutes(),
+      oldEnd.getSeconds()
+    );
 
     if (!isNaN(newStart) && !isNaN(newEnd)) {
       log.startTime = newStart.toISOString();
@@ -149,7 +168,9 @@ const editField = (log, field, event) => {
 };
 
 const editTime = (log, field, event) => {
-  const [hours, minutes, seconds] = event.target.innerText.split(':').map(Number);
+  const [hours, minutes, seconds] = event.target.innerText
+    .split(":")
+    .map(Number);
   if (!isNaN(hours) && !isNaN(minutes) && !isNaN(seconds)) {
     const date = new Date(log[field]);
     date.setHours(hours, minutes, seconds);
@@ -164,38 +185,37 @@ const editTime = (log, field, event) => {
 const saveChanges = () => store.saveLogs();
 
 const clearLogs = () => {
-  store.activityLogs = store.activityLogs.filter(log => 
-    !startDate.value || new Date(log.startTime).toISOString().slice(0, 10) !== startDate.value
+  store.activityLogs = store.activityLogs.filter(
+    (log) =>
+      !startDate.value ||
+      new Date(log.startTime).toISOString().slice(0, 10) !== startDate.value
   );
   saveChanges();
 };
 
 const deleteActivity1 = (id) => {
-  store.activityLogs = store.activityLogs.filter(log => log.id !== id);
+  store.activityLogs = store.activityLogs.filter((log) => log.id !== id);
   store.saveLogs();
 };
 
-
 const exportToExcel = () => {
-  const logs = sortedLogs.value.map(log => ({
+  const logs = sortedLogs.value.map((log) => ({
     Дата: formatDate(log.startTime),
     Активність: log.name,
     Категорія: log.category,
     Початок: formatTime(log.startTime),
     Закінчення: formatTime(log.endTime),
-    "Тривалість": formatDuration(log.startTime, log.endTime)
+    Тривалість: formatDuration(log.startTime, log.endTime),
   }));
 
   const ws = XLSX.utils.json_to_sheet(logs);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
-  XLSX.writeFile(wb, 'ActivityLogs.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, "Activity Logs");
+  XLSX.writeFile(wb, "ActivityLogs.xlsx");
 };
 
-const goToTimerPage = () => router.push('/');
+const goToTimerPage = () => router.push("/");
 </script>
-
-
 
 <style scoped>
 .container {
@@ -207,7 +227,8 @@ table {
   width: 100%;
   border-collapse: collapse;
 }
-th, td {
+th,
+td {
   border: 1px solid #ddd;
   padding: 8px;
 }
