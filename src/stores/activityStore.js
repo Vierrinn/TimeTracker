@@ -65,36 +65,41 @@ export const useActivityStore = defineStore({
       if (category) {
         const oldName = category.name;
         category.name = newName;
-
+    
         this.activities.forEach(activity => {
           if (activity.category === oldName) {
             activity.category = newName;
           }
         });
-
-        if (this.currentActivity?.category === oldName) {
-          this.currentActivity.category = newName;
-        }
-
+    
+        this.activityLogs.forEach(log => {
+          if (log.category === oldName) {
+            log.category = newName;
+          }
+        });
+    
         this.saveState();
       }
-    },
+    }
+    ,
 
     deleteCategory(id) {
       const category = this.categories.find(c => c.id === id);
       if (!category) return;
-
+    
+      this.activities = this.activities.filter(activity => activity.category !== category.name);
+    
       this.categories = this.categories.filter(c => c.id !== id);
-
-      this.activities = this.activities.filter(a => a.category !== category.name);
-
-      // If the current activity is from this category, stop it
+    
       if (this.currentActivity?.category === category.name) {
         this.stopActivity();
       }
-
+    
       this.saveState();
-    },
+    }
+    
+    
+    ,
 
     addActivity(activity) {
       if (!this.activities.some(a => a.name === activity.name)) {

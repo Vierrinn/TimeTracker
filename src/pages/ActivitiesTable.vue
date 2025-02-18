@@ -3,10 +3,16 @@
     <h1>Таблиця активностей</h1>
 
     <div class="filters">
-      <label>Виберіть період:</label>
-      <input type="date" v-model="startDate" />
-      <input type="date" v-model="endDate" />
-    </div>
+  <label>Виберіть період:</label>
+  <input type="date" v-model="startDate" />
+  <input type="date" v-model="endDate" />
+
+  <label>Виберіть категорію:</label>
+  <select v-model="categoryFilter">
+    <option value="">Всі категорії</option>
+    <option v-for="category in uniqueCategories" :key="category" :value="category">{{ category }}</option>
+  </select>
+</div>
 
     <table>
       <thead>
@@ -17,7 +23,7 @@
           <th>Початок</th>
           <th>Закінчення</th>
           <th>Тривалість</th>
-          <th>Дія</th>
+        
         </tr>
       </thead>
       <tbody>
@@ -29,15 +35,14 @@
             {{ log.name }}
           </td>
           <td>
-            <select v-model="log.category" @change="saveChanges">
-              <option
-                v-for="category in store.categories"
-                :key="category.id"
-                :value="category.name"
-              >
-                {{ category.name }}
-              </option>
-            </select>
+            <input
+              v-if="isEditingCategory(log.id)"
+              v-model="log.category"
+              @blur="saveCategoryEdit(log.id, log.category)"
+            />
+            <span v-else @click="startEditingCategory(log.id)">
+              {{ log.category }}
+            </span>
           </td>
           <td contenteditable @blur="editTime(log, 'startTime', $event)">
             {{ formatTime(log.startTime) }}
@@ -68,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { useActivityStore } from "@/stores/activityStore";
 import * as XLSX from "xlsx";
 import { useRouter } from "vue-router";
@@ -79,15 +84,25 @@ const router = useRouter();
 const startDate = ref("");
 const endDate = ref("");
 
+const categoryFilter = ref(""); 
+
+const uniqueCategories = computed(() => {
+  const categories = store.activityLogs.map(log => log.category);
+  return [...new Set(categories)]; 
+});
+
 const filteredLogs = computed(() => {
   return store.activityLogs.filter((log) => {
     const logDate = new Date(log.startTime).toISOString().slice(0, 10);
+    const isCategoryMatch = !categoryFilter.value || log.category === categoryFilter.value;
     return (
       (!startDate.value || logDate >= startDate.value) &&
-      (!endDate.value || logDate <= endDate.value)
+      (!endDate.value || logDate <= endDate.value) &&
+      isCategoryMatch
     );
   });
 });
+
 
 const sortedLogs = computed(() =>
   [...filteredLogs.value].sort(
@@ -103,7 +118,7 @@ const totalDuration = computed(() => {
   return formatTotalDuration(totalSeconds);
 });
 
-// Formatting Functions
+
 const formatDate = (date) => new Date(date).toLocaleDateString();
 const formatTime = (time) =>
   new Date(time).toLocaleTimeString([], {
@@ -124,13 +139,13 @@ const formatTotalDuration = (totalSeconds) => {
   return `${hours} год ${minutes} хв ${seconds} сек`;
 };
 
-const calculateDurationSeconds = (start, end) => {
+function calculateDurationSeconds(start, end) {
   const startTime = new Date(start);
   const endTime = new Date(end);
   return Math.round((endTime - startTime) / 1000);
-};
+}
 
-// Editing Functions
+
 const editDate = (log, event) => {
   const newDate = event.target.innerText.split(".");
   if (newDate.length === 3) {
@@ -181,17 +196,24 @@ const editTime = (log, field, event) => {
   }
 };
 
-// Data Management
+
 const saveChanges = () => store.saveLogs();
 
 const clearLogs = () => {
-  store.activityLogs = store.activityLogs.filter(
-    (log) =>
-      !startDate.value ||
-      new Date(log.startTime).toISOString().slice(0, 10) !== startDate.value
-  );
+  
+  if (!startDate.value && !endDate.value) {
+    store.activityLogs = [];
+  } else {
+    
+    store.activityLogs = store.activityLogs.filter(
+      (log) =>
+        (startDate.value && new Date(log.startTime).toISOString().slice(0, 10) < startDate.value) ||
+        (endDate.value && new Date(log.startTime).toISOString().slice(0, 10) > endDate.value)
+    );
+  }
   saveChanges();
 };
+
 
 const deleteActivity1 = (id) => {
   store.activityLogs = store.activityLogs.filter((log) => log.id !== id);
@@ -215,46 +237,171 @@ const exportToExcel = () => {
 };
 
 const goToTimerPage = () => router.push("/");
+
+
+let editingCategoryId = null;
+
+const isEditingCategory = (id) => id === editingCategoryId;
+
+const startEditingCategory = (id) => {
+  editingCategoryId = id;
+};
+
+const saveCategoryEdit = (id, name) => {
+  store.editCategory(id, name);  
+  editingCategoryId = null; 
+};
 </script>
 
 <style scoped>
+
 .container {
+  text-align: center;
   max-width: 900px;
   margin: auto;
-  text-align: center;
+  font-family: 'Arial', sans-serif;
+  padding: 20px;
+  background: linear-gradient(to bottom, #e3f2fd, #f8bbd0);
+  border-radius: 15px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
+
+h1 {
+  color: #1565c0;
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+.filters {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.filters label {
+  font-size: 16px;
+  color: #0d47a1;
+}
+
+.filters input {
+  padding: 8px;
+  width: 200px;
+  border: 2px solid #0d47a1;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
+  margin-bottom: 20px;
 }
+
 th,
 td {
   border: 1px solid #ddd;
-  padding: 8px;
+  padding: 10px;
+  text-align: center;
 }
+
 th {
   background-color: #f4f4f4;
+  color: #1565c0;
 }
+
 tfoot td {
   font-weight: bold;
+  background-color: #e1f5fe;
 }
-.filters {
-  margin-bottom: 15px;
+
+tr:nth-child(even) {
+  background-color: #f1f8e9;
 }
+
+td[contenteditable] {
+  background-color: #fff7e6;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+select {
+  padding: 10px;
+  border: 2px solid #0d47a1;
+  border-radius: 10px;
+  font-size: 16px;
+  width: 100%;
+}
+
 button {
-  margin-top: 10px;
-  padding: 5px 10px;
+  padding: 8px 15px;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: 0.3s ease-in-out;
 }
+
+button:hover {
+  opacity: 0.8;
+}
+
+button:not(.back-btn) {
+  background: #0d47a1;
+  color: white;
+  margin-top: 10px;
+}
+
+button:not(.back-btn):hover {
+  background: #1565c0;
+}
+
 .back-btn {
-  background-color: lightcoral;
+  background-color: #ff80ab;
   color: white;
   border: none;
-  padding: 10px 15px;
+  padding: 12px 20px;
   cursor: pointer;
   font-size: 16px;
-  border-radius: 5px;
+  border-radius: 10px;
 }
+
 .back-btn:hover {
-  background-color: darkred;
+  background-color: #f48fb1;
+}
+
+button.delete-btn {
+  background: transparent;
+  color: #d32f2f;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .filters {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .filters input {
+    width: 100%;
+  }
+
+  table {
+    font-size: 14px;
+  }
+
+  th, td {
+    padding: 6px;
+  }
+
+  button {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  .back-btn {
+    padding: 10px 18px;
+  }
 }
 </style>
