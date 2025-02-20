@@ -256,14 +256,15 @@ const saveCategoryEdit = (id, name) => {
 <style scoped>
 
 .container {
-  text-align: center;
-  max-width: 900px;
-  margin: auto;
-  font-family: 'Arial', sans-serif;
-  padding: 20px;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
   background: linear-gradient(to bottom, #e3f2fd, #f8bbd0);
-  border-radius: 15px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  padding: 40px;
 }
 
 h1 {
